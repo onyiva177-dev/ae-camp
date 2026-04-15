@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>SecureExam — Proctoring Simulation</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -77,6 +77,27 @@ body::after {
 @keyframes scanline {
   0%   { top: 0; }
   100% { top: 100vh; }
+}
+
+/* ═══════════════════════════════════════════════════
+   MOBILE-RESPONSIVE ADAPTATION (NEW LAYER)
+═══════════════════════════════════════════════════ */
+@media (max-width: 850px) {
+  .exam-body { flex-direction: column !important; overflow-y: auto !important; }
+  .log-panel { 
+    width: 100% !important; 
+    height: 300px !important; 
+    border-left: none !important; 
+    border-top: 1px solid var(--border) !important;
+    flex-shrink: 0 !important;
+  }
+  .status-bar { height: auto !important; flex-wrap: wrap !important; padding: 10px !important; gap: 10px !important; }
+  .status-pill { font-size: 10px !important; }
+  .info-grid { grid-template-columns: 1fr !important; }
+  .landing-title { font-size: 32px !important; }
+  .q-nav { flex-direction: column-reverse !important; gap: 20px !important; }
+  .nav-btn { width: 100% !important; justify-content: center !important; }
+  .detector-grid { grid-template-columns: repeat(2, 1fr) !important; display: grid !important; }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -988,7 +1009,6 @@ body::after {
 <body>
 <div id="app">
 
-  <!-- ═══════════════ LANDING SCREEN ═══════════════ -->
   <div id="screen-landing" class="screen active">
     <div class="landing-glow"></div>
 
@@ -1024,10 +1044,8 @@ body::after {
     <button class="btn-start" onclick="startExam()">BEGIN ASSESSMENT →</button>
   </div>
 
-  <!-- ═══════════════ EXAM SCREEN ══════════════════ -->
   <div id="screen-exam" class="screen">
 
-    <!-- Header -->
     <header class="exam-header">
       <span class="header-brand">🔒 SecureExam</span>
       <div class="header-sep"></div>
@@ -1037,7 +1055,6 @@ body::after {
       <span class="header-timer" id="hdr-elapsed">+00:00</span>
     </header>
 
-    <!-- Status bar -->
     <div class="status-bar">
       <div class="status-pill">
         <span class="lbl">Visibility:</span>
@@ -1060,10 +1077,8 @@ body::after {
       </div>
     </div>
 
-    <!-- Main body -->
     <div class="exam-body">
 
-      <!-- Exam content -->
       <div class="exam-content">
 
         <div class="progress-wrap">
@@ -1089,7 +1104,6 @@ body::after {
         </div>
       </div>
 
-      <!-- Log panel -->
       <div class="log-panel">
         <div class="log-header">
           <div class="log-icon"></div>
@@ -1132,18 +1146,12 @@ body::after {
         </div>
       </div>
 
-    </div><!-- /exam-body -->
-
-    <!-- Footer -->
-    <footer class="exam-footer">
+    </div><footer class="exam-footer">
       <span>⚙ Detection Engine: ACTIVE · All APIs Initialized</span>
       <span id="footer-status" style="color:var(--amber)">⏳ WARMING UP…</span>
     </footer>
 
-  </div><!-- /screen-exam -->
-
-  <!-- ═══════════════ TERMINATED SCREEN ════════════ -->
-  <div id="screen-terminated" class="screen">
+  </div><div id="screen-terminated" class="screen">
     <div class="term-icon">🔒</div>
     <div class="term-title">SESSION TERMINATED</div>
     <div class="term-sub">This session has been locked and logged.</div>
@@ -1164,7 +1172,6 @@ body::after {
     <button class="btn-back" onclick="goLanding()">← RETURN TO DASHBOARD</button>
   </div>
 
-  <!-- ═══════════════ RESULT SCREEN ════════════════ -->
   <div id="screen-result" class="screen">
     <div style="font-size:56px;margin-bottom:16px">✅</div>
     <div class="result-title">ASSESSMENT COMPLETE</div>
@@ -1187,10 +1194,7 @@ body::after {
     <button class="btn-back" onclick="goLanding()">← RETURN TO DASHBOARD</button>
   </div>
 
-</div><!-- /app -->
-
-<!-- Violation overlay -->
-<div id="violation-overlay">
+</div><div id="violation-overlay">
   <div class="viol-corner tl"></div>
   <div class="viol-corner tr"></div>
   <div class="viol-corner bl"></div>
@@ -1205,7 +1209,6 @@ body::after {
   </div>
 </div>
 
-<!-- Warmup progress bar -->
 <div id="warmup-bar"></div>
 
 <script>
@@ -1601,11 +1604,6 @@ window.addEventListener('focus', () => {
   addLog('Window regained focus — focus event', 'info');
   document.getElementById('pill-focus').textContent = 'FOCUSED';
   document.getElementById('pill-focus').className   = 'val-ok';
-
-  // Auto-heal status if it was a focus violation and now we're back
-  if (sessionState === 'violated') {
-    // Don't auto-heal — let candidate dismiss
-  }
   updateStatusUI();
 });
 
@@ -1672,7 +1670,6 @@ document.addEventListener('dragstart', (e) => e.preventDefault());
 
 // Disable select via mouse
 document.addEventListener('selectstart', (e) => {
-  // Allow in input/textarea
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   e.preventDefault();
 });
