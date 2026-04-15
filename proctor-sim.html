@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SecureExam — Proctoring Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════════════ */
+:root {
+  --bg:        #04080c;
+  --panel:     #080f16;
+  --border:    #112233;
+  --green:     #00ff88;
+  --red:       #ff2244;
+  --cyan:      #00d4ff;
+  --amber:     #ffaa00;
+  --dim:       #2a4455;
+  --text:      #7ecfef;
+  --white:     #e8f4ff;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-disp: 'Orbitron', monospace;
+}
+
+/* ═══════════════════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  overflow: hidden;
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #00d4ff40; }
+
+/* ═══════════════════════════════════════════════════
+   BACKGROUND EFFECTS
+═══════════════════════════════════════════════════ */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, #001a2e 0%, transparent 60%),
+    repeating-linear-gradient(0deg, transparent, transparent 39px, #112233 39px, #112233 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, #0d1e2c 39px, #0d1e2c 40px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+}
+
+/* Scanline */
+body::after {
+  content: '';
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 3px;
+  background: rgba(0, 212, 255, 0.07);
+  animation: scanline 7s linear infinite;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+@keyframes scanline {
+  0%   { top: 0; }
+  100% { top: 100vh; }
+}
+
+/* ═══════════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════════ */
+#app {
+  position: relative;
+  z-index: 1;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── SCREENS ─────────────────────────────────────── */
+.screen { display: none; flex-direction: column; height: 100%; }
+.screen.active { display: flex; }
+
+/* ═══════════════════════════════════════════════════
+   LANDING SCREEN
+═══════════════════════════════════════════════════ */
+#screen-landing {
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.landing-glow {
+  position: absolute; top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 600px; height: 300px;
+  background: radial-gradient(ellipse, #00d4ff0a 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.landing-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #00d4ff30;
+  background: #00d4ff08;
+  color: var(--cyan);
+  font-family: var(--font-disp);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  padding: 6px 16px;
+  margin-bottom: 24px;
+}
+
+.landing-badge::before {
+  content: '';
+  width: 6px; height: 6px;
+  background: var(--green);
+  border-radius: 50%;
+  animation: pulse-dot 2s ease infinite;
+}
+
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; box-shadow: 0 0 0 0 #00ff8860; }
+  50% { opacity: 0.6; box-shadow: 0 0 0 6px transparent; }
+}
+
+.landing-title {
+  font-family: var(--font-disp);
+  font-size: clamp(28px, 5vw, 52px);
+  font-weight: 900;
+  color: var(--white);
+  letter-spacing: -0.02em;
+  text-align: center;
+  line-height: 1.05;
+  margin-bottom: 8px;
+}
+
+.landing-title span { color: var(--cyan); }
+
+.landing-sub {
+  font-family: var(--font-disp);
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  color: var(--dim);
+  text-align: center;
+  margin-bottom: 48px;
+  text-transform: uppercase;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin-bottom: 40px;
+  width: min(600px, 90vw);
+}
+
+.info-cell {
+  background: var(--panel);
+  padding: 16px 20px;
+  text-align: center;
+}
+
+.info-cell .val {
+  font-family: var(--font-disp);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--cyan);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.info-cell .lbl {
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.rules-box {
+  width: min(540px, 90vw);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  padding: 20px 24px;
+  margin-bottom: 36px;
+}
+
+.rules-box h3 {
+  font-family: var(--font-disp);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--amber);
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
+
+.rule-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.rule-dot {
+  width: 4px; height: 4px;
+  background: var(--amber);
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+
+.btn-start {
+  font-family: var(--font-disp);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  padding: 14px 52px;
+  background: transparent;
+  border: 1px solid var(--green);
+  color: var(--green);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.btn-start::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--green);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
+  z-index: -1;
+}
+
+.btn-start:hover {
+  color: var(--bg);
+  box-shadow: 0 0 30px #00ff8840;
+}
+
+.btn-start:hover::before { transform: scaleX(1); }
+
+/* ═══════════════════════════════════════════════════
+   EXAM SCREEN
+═══════════════════════════════════════════════════ */
+#screen-exam {
+  overflow: hidden;
+}
+
+/* ── Header ────────────────────────────────────── */
+.exam-header {
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  background: var(--panel);
+}
+
+.header-brand {
+  font-family: var(--font-disp);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--white);
+  text-transform: uppercase;
+}
+
+.header-sep { flex: 1; }
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 2px;
+  font-family: var(--font-disp);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  border: 1px solid;
+  font-weight: 700;
+}
+
+.status-chip.secure {
+  color: var(--green);
+  border-color: #00ff8840;
+  background: #00ff8808;
+}
+
+.status-chip.violated {
+  color: var(--red);
+  border-color: #ff224440;
+  background: #ff224408;
+  animation: blink-chip 1s step-end infinite;
+}
+
+.status-chip.warming {
+  color: var(--amber);
+  border-color: #ffaa0040;
+  background: #ffaa0008;
+}
+
+@keyframes blink-chip {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.header-clock {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.05em;
+}
+
+.header-timer {
+  font-family: var(--font-disp);
+  font-size: 11px;
+  color: var(--amber);
+}
+
+/* ── Status bar ────────────────────────────────── */
+.status-bar {
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+  background: #060d14;
+}
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.status-pill .lbl { color: var(--dim); }
+.status-pill .val-ok  { color: var(--green); }
+.status-pill .val-bad { color: var(--red); font-weight: 700; }
+.status-pill .val-warm { color: var(--amber); }
+
+.status-bar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+/* ── Main body ─────────────────────────────────── */
+.exam-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Exam content ──────────────────────────────── */
+.exam-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* Progress bar */
+.progress-wrap {
+  margin-bottom: 20px;
+}
+
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--dim);
+  margin-bottom: 6px;
+  font-family: var(--font-disp);
+  letter-spacing: 0.1em;
+}
+
+.progress-track {
+  height: 2px;
+  background: #112233;
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--green);
+  transition: width 0.4s ease;
+  border-radius: 1px;
+}
+
+/* Question card */
+.q-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 24px;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.q-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px; height: 100%;
+  background: var(--cyan);
+}
+
+.q-num {
+  font-family: var(--font-disp);
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  color: var(--cyan);
+  margin-bottom: 10px;
+  display: block;
+}
+
+.q-text {
+  color: var(--white);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  font-family: var(--font-mono);
+}
+
+.opts { display: flex; flex-direction: column; gap: 8px; }
+
+.opt-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  transition: all 0.15s;
+  width: 100%;
+}
+
+.opt-btn:hover {
+  border-color: var(--dim);
+  color: var(--white);
+  background: #0d1e2c;
+}
+
+.opt-btn.selected {
+  border-color: var(--cyan);
+  background: #00d4ff0d;
+  color: var(--cyan);
+}
+
+.opt-letter {
+  width: 22px; height: 22px;
+  border: 1px solid;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-disp);
+  font-size: 10px;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.opt-btn.selected .opt-letter {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  color: var(--bg);
+}
+
+/* Nav */
+.q-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  cursor: pointer;
+  font-family: var(--font-disp);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  transition: all 0.15s;
+}
+
+.nav-btn:hover:not(:disabled) {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.nav-btn.submit {
+  border-color: var(--green);
+  color: var(--green);
+  padding: 8px 24px;
+}
+
+.nav-btn.submit:hover {
+  background: var(--green);
+  color: var(--bg);
+  box-shadow: 0 0 20px #00ff8840;
+}
+
+.q-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.q-dot {
+  width: 24px; height: 24px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.12s;
+}
+
+.q-dot.current {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  color: var(--bg);
+}
+
+.q-dot.answered {
+  background: #00ff8812;
+  border-color: #00ff8840;
+  color: var(--green);
+}
+
+.q-dot.unanswered {
+  background: var(--panel);
+  border-color: var(--border);
+  color: var(--dim);
+}
+
+.q-dot.unanswered:hover {
+  border-color: var(--dim);
+}
+
+/* ── Log Panel ─────────────────────────────────── */
+.log-panel {
+  width: 280px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: #060c12;
+  flex-shrink: 0;
+}
+
+.log-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.log-icon {
+  width: 6px; height: 6px;
+  background: var(--cyan);
+  border-radius: 50%;
+  animation: pulse-dot 2s infinite;
+}
+
+.log-title {
+  font-family: var(--font-disp);
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  color: var(--cyan);
+  text-transform: uppercase;
+  flex: 1;
+}
+
+.log-count {
+  background: #112233;
+  color: var(--dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 1px;
+}
+
+.log-legend {
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.log-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.log-entry {
+  margin-bottom: 4px;
+  animation: logIn 0.25s ease forwards;
+}
+
+@keyframes logIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.log-time {
+  font-size: 10px;
+  color: var(--dim);
+  display: block;
+  line-height: 1.2;
+}
+
+.log-msg {
+  font-size: 11px;
+  line-height: 1.3;
+  display: block;
+}
+
+.log-msg.info     { color: var(--text); }
+.log-msg.ok       { color: var(--green); }
+.log-msg.warn     { color: var(--amber); }
+.log-msg.violation { color: var(--red); font-weight: 700; }
+
+/* Log footer stats */
+.log-stats {
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  flex-shrink: 0;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+
+.stat-row .sk { color: var(--dim); }
+.stat-row .sv-ok  { color: var(--green); }
+.stat-row .sv-bad { color: var(--red); }
+.stat-row .sv-amb { color: var(--amber); }
+.stat-row .sv-def { color: var(--cyan); }
+
+/* Detector grid */
+.detector-grid {
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  flex-shrink: 0;
+}
+
+.det-title {
+  font-family: var(--font-disp);
+  font-size: 9px;
+  letter-spacing: 0.25em;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.det-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  margin-bottom: 4px;
+  align-items: center;
+}
+
+.det-row .dn { color: var(--dim); }
+.det-armed  { color: var(--green); }
+.det-firing { color: var(--red); animation: blink-chip 0.5s step-end infinite; }
+
+/* ── Footer ────────────────────────────────────── */
+.exam-footer {
+  border-top: 1px solid var(--border);
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--dim);
+  flex-shrink: 0;
+  background: var(--panel);
+}
+
+/* ═══════════════════════════════════════════════════
+   VIOLATION OVERLAY
+═══════════════════════════════════════════════════ */
+#violation-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  z-index: 100;
+  background: rgba(10, 2, 4, 0.97);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  animation: fadeIn 0.2s ease;
+}
+
+#violation-overlay.show { display: flex; }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Corner brackets */
+.viol-corner { position: absolute; width: 48px; height: 48px; }
+.viol-corner.tl { top: 16px; left: 16px;  border-top: 2px solid rgba(255,34,68,0.5); border-left: 2px solid rgba(255,34,68,0.5); }
+.viol-corner.tr { top: 16px; right: 16px; border-top: 2px solid rgba(255,34,68,0.5); border-right: 2px solid rgba(255,34,68,0.5); }
+.viol-corner.bl { bottom: 16px; left: 16px;  border-bottom: 2px solid rgba(255,34,68,0.5); border-left: 2px solid rgba(255,34,68,0.5); }
+.viol-corner.br { bottom: 16px; right: 16px; border-bottom: 2px solid rgba(255,34,68,0.5); border-right: 2px solid rgba(255,34,68,0.5); }
+
+/* Ambient red glow */
+#violation-overlay::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px; height: 500px;
+  background: radial-gradient(ellipse, #ff224415 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.viol-icon {
+  font-size: 72px;
+  margin-bottom: 20px;
+  animation: pulse-icon 1.5s ease infinite;
+}
+
+@keyframes pulse-icon {
+  0%,100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.08); opacity: 0.85; }
+}
+
+.viol-title {
+  font-family: var(--font-disp);
+  font-size: clamp(36px, 6vw, 60px);
+  font-weight: 900;
+  color: var(--red);
+  text-align: center;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  margin-bottom: 8px;
+  text-shadow: 0 0 30px #ff224460, 0 0 60px #ff224430;
+}
+
+.viol-reason {
+  color: rgba(255,255,255,0.65);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  margin-bottom: 6px;
+  text-align: center;
+  padding: 0 20px;
+}
+
+.viol-count {
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.3);
+  padding: 6px 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 32px;
+  letter-spacing: 0.05em;
+}
+
+.viol-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-dismiss {
+  font-family: var(--font-disp);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  padding: 12px 36px;
+  background: var(--white);
+  border: none;
+  color: var(--red);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+
+.btn-dismiss:hover {
+  background: white;
+  box-shadow: 0 0 20px rgba(255,34,68,0.3);
+}
+
+.btn-end {
+  font-family: var(--font-disp);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  padding: 12px 36px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+
+.btn-end:hover {
+  border-color: rgba(255,255,255,0.6);
+  color: white;
+}
+
+/* ═══════════════════════════════════════════════════
+   TERMINATED SCREEN
+═══════════════════════════════════════════════════ */
+#screen-terminated {
+  align-items: center;
+  justify-content: center;
+}
+
+.term-icon { font-size: 56px; margin-bottom: 20px; }
+
+.term-title {
+  font-family: var(--font-disp);
+  font-size: clamp(28px, 5vw, 44px);
+  font-weight: 900;
+  color: var(--red);
+  text-align: center;
+  letter-spacing: -0.01em;
+  margin-bottom: 12px;
+  text-shadow: 0 0 20px #ff224460;
+}
+
+.term-sub {
+  color: var(--dim);
+  font-size: 12px;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+}
+
+.term-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin: 24px 0;
+  width: min(480px, 90vw);
+}
+
+.term-stat {
+  background: var(--panel);
+  padding: 14px;
+  text-align: center;
+}
+
+.term-stat .tv {
+  font-family: var(--font-disp);
+  font-size: 22px;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 3px;
+}
+
+.term-stat .tk {
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.btn-back {
+  font-family: var(--font-disp);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  padding: 12px 36px;
+  background: transparent;
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+
+.btn-back:hover {
+  background: var(--cyan);
+  color: var(--bg);
+  box-shadow: 0 0 20px #00d4ff40;
+}
+
+/* ═══════════════════════════════════════════════════
+   RESULT SCREEN
+═══════════════════════════════════════════════════ */
+#screen-result {
+  align-items: center;
+  justify-content: center;
+}
+
+.result-title {
+  font-family: var(--font-disp);
+  font-size: clamp(28px, 5vw, 44px);
+  font-weight: 900;
+  color: var(--green);
+  text-align: center;
+  margin-bottom: 8px;
+  text-shadow: 0 0 20px #00ff8860;
+}
+
+.result-score {
+  font-family: var(--font-disp);
+  font-size: 72px;
+  font-weight: 900;
+  color: var(--cyan);
+  text-shadow: 0 0 30px #00d4ff60;
+  margin: 16px 0;
+}
+
+/* ═══════════════════════════════════════════════════
+   ANIMATIONS
+═══════════════════════════════════════════════════ */
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  10%,30%,50%,70%,90% { transform: translateX(-8px); }
+  20%,40%,60%,80% { transform: translateX(8px); }
+}
+
+.shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+
+/* Warming countdown */
+#warmup-bar {
+  position: fixed;
+  bottom: 0; left: 0;
+  width: 0%;
+  height: 3px;
+  background: var(--amber);
+  transition: width 0.1s linear;
+  z-index: 50;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ═══════════════ LANDING SCREEN ═══════════════ -->
+  <div id="screen-landing" class="screen active">
+    <div class="landing-glow"></div>
+
+    <div class="landing-badge">PROCTORING SIMULATION v2.1</div>
+
+    <h1 class="landing-title">Secure<span>Exam</span></h1>
+    <p class="landing-sub">Max Detection Environment · Browser Security Testing</p>
+
+    <div class="info-grid">
+      <div class="info-cell">
+        <span class="val">5</span>
+        <span class="lbl">Questions</span>
+      </div>
+      <div class="info-cell">
+        <span class="val">15<span style="font-size:12px">min</span></span>
+        <span class="lbl">Duration</span>
+      </div>
+      <div class="info-cell">
+        <span class="val" style="color:var(--red)">MAX</span>
+        <span class="lbl">Monitoring</span>
+      </div>
+    </div>
+
+    <div class="rules-box">
+      <h3>⚠ Exam Conditions</h3>
+      <div class="rule-item"><div class="rule-dot"></div>Do not switch tabs or minimize the window</div>
+      <div class="rule-item"><div class="rule-dot"></div>Do not open external applications or overlays</div>
+      <div class="rule-item"><div class="rule-dot"></div>Right-clicking, printing and copy shortcuts are disabled</div>
+      <div class="rule-item"><div class="rule-dot"></div>All activity is logged in real-time</div>
+      <div class="rule-item"><div class="rule-dot"></div>Violations are recorded and shown to proctors</div>
+    </div>
+
+    <button class="btn-start" onclick="startExam()">BEGIN ASSESSMENT →</button>
+  </div>
+
+  <!-- ═══════════════ EXAM SCREEN ══════════════════ -->
+  <div id="screen-exam" class="screen">
+
+    <!-- Header -->
+    <header class="exam-header">
+      <span class="header-brand">🔒 SecureExam</span>
+      <div class="header-sep"></div>
+      <div id="status-chip" class="status-chip warming">● ARMING…</div>
+      <div class="header-sep"></div>
+      <span class="header-clock" id="hdr-clock">--:--:--</span>
+      <span class="header-timer" id="hdr-elapsed">+00:00</span>
+    </header>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+      <div class="status-pill">
+        <span class="lbl">Visibility:</span>
+        <span id="pill-vis" class="val-ok">VISIBLE</span>
+      </div>
+      <div class="status-pill">
+        <span class="lbl">Focus:</span>
+        <span id="pill-focus" class="val-ok">FOCUSED</span>
+      </div>
+      <div class="status-pill">
+        <span class="lbl">Anti-Copy:</span>
+        <span class="val-ok">ACTIVE</span>
+      </div>
+      <div class="status-pill">
+        <span class="lbl">Violations:</span>
+        <span id="pill-viols" class="val-ok">0</span>
+      </div>
+      <div class="status-bar-right" id="sb-right">
+        <span class="val-warm">⏳ ARMING DETECTORS…</span>
+      </div>
+    </div>
+
+    <!-- Main body -->
+    <div class="exam-body">
+
+      <!-- Exam content -->
+      <div class="exam-content">
+
+        <div class="progress-wrap">
+          <div class="progress-meta">
+            <span id="q-label">QUESTION 1 / 5</span>
+            <span id="q-pct">0% complete</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div class="q-card" id="q-card">
+          <span class="q-num" id="q-num">Q1.</span>
+          <p class="q-text" id="q-text"></p>
+          <div class="opts" id="q-opts"></div>
+        </div>
+
+        <div class="q-nav">
+          <button class="nav-btn" id="btn-prev" onclick="navigate(-1)">← PREVIOUS</button>
+          <div class="q-dots" id="q-dots"></div>
+          <button class="nav-btn" id="btn-next" onclick="navigate(1)">NEXT →</button>
+        </div>
+      </div>
+
+      <!-- Log panel -->
+      <div class="log-panel">
+        <div class="log-header">
+          <div class="log-icon"></div>
+          <span class="log-title">Activity Log</span>
+          <span class="log-count" id="log-count">0</span>
+        </div>
+        <div class="log-legend">
+          <span style="color:var(--green)">● OK</span>
+          <span style="color:var(--amber)">● WARN</span>
+          <span style="color:var(--red)">● VIOL</span>
+        </div>
+        <div class="log-body" id="log-body"></div>
+
+        <div class="log-stats">
+          <div class="stat-row">
+            <span class="sk">Violations</span>
+            <span id="stat-viols" class="sv-ok">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="sk">Elapsed</span>
+            <span id="stat-elapsed" class="sv-amb">00:00</span>
+          </div>
+          <div class="stat-row">
+            <span class="sk">Events</span>
+            <span id="stat-events" class="sv-def">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="sk">Status</span>
+            <span id="stat-status" class="sv-amb">ARMING</span>
+          </div>
+        </div>
+
+        <div class="detector-grid">
+          <div class="det-title">Detector Status</div>
+          <div class="det-row"><span class="dn">Visibility API</span><span id="det-vis" class="det-armed">● ARMED</span></div>
+          <div class="det-row"><span class="dn">Focus Monitor</span><span id="det-focus" class="det-armed">● ARMED</span></div>
+          <div class="det-row"><span class="dn">Right-Click Block</span><span class="det-armed">● ARMED</span></div>
+          <div class="det-row"><span class="dn">Print Intercept</span><span class="det-armed">● ARMED</span></div>
+          <div class="det-row"><span class="dn">KeyLogger Shield</span><span class="det-armed">● ARMED</span></div>
+        </div>
+      </div>
+
+    </div><!-- /exam-body -->
+
+    <!-- Footer -->
+    <footer class="exam-footer">
+      <span>⚙ Detection Engine: ACTIVE · All APIs Initialized</span>
+      <span id="footer-status" style="color:var(--amber)">⏳ WARMING UP…</span>
+    </footer>
+
+  </div><!-- /screen-exam -->
+
+  <!-- ═══════════════ TERMINATED SCREEN ════════════ -->
+  <div id="screen-terminated" class="screen">
+    <div class="term-icon">🔒</div>
+    <div class="term-title">SESSION TERMINATED</div>
+    <div class="term-sub">This session has been locked and logged.</div>
+    <div class="term-stats" id="term-stats">
+      <div class="term-stat">
+        <span class="tv" id="ts-viols" style="color:var(--red)">0</span>
+        <span class="tk">Violations</span>
+      </div>
+      <div class="term-stat">
+        <span class="tv" id="ts-elapsed" style="color:var(--amber)">00:00</span>
+        <span class="tk">Elapsed</span>
+      </div>
+      <div class="term-stat">
+        <span class="tv" id="ts-events" style="color:var(--cyan)">0</span>
+        <span class="tk">Events</span>
+      </div>
+    </div>
+    <button class="btn-back" onclick="goLanding()">← RETURN TO DASHBOARD</button>
+  </div>
+
+  <!-- ═══════════════ RESULT SCREEN ════════════════ -->
+  <div id="screen-result" class="screen">
+    <div style="font-size:56px;margin-bottom:16px">✅</div>
+    <div class="result-title">ASSESSMENT COMPLETE</div>
+    <div class="result-score" id="result-score">4/5</div>
+    <div class="term-sub" id="result-pct">80% — Strong Pass</div>
+    <div class="term-stats" style="margin: 24px 0; width:min(480px,90vw);">
+      <div class="term-stat">
+        <span class="tv" id="rs-viols" style="color:var(--red)">0</span>
+        <span class="tk">Violations</span>
+      </div>
+      <div class="term-stat">
+        <span class="tv" id="rs-elapsed" style="color:var(--amber)">00:00</span>
+        <span class="tk">Elapsed</span>
+      </div>
+      <div class="term-stat">
+        <span class="tv" id="rs-events" style="color:var(--cyan)">0</span>
+        <span class="tk">Events</span>
+      </div>
+    </div>
+    <button class="btn-back" onclick="goLanding()">← RETURN TO DASHBOARD</button>
+  </div>
+
+</div><!-- /app -->
+
+<!-- Violation overlay -->
+<div id="violation-overlay">
+  <div class="viol-corner tl"></div>
+  <div class="viol-corner tr"></div>
+  <div class="viol-corner bl"></div>
+  <div class="viol-corner br"></div>
+  <div class="viol-icon">⚠️</div>
+  <div class="viol-title">VIOLATION<br>DETECTED</div>
+  <div class="viol-reason" id="viol-reason">Window lost focus</div>
+  <div class="viol-count" id="viol-count">Total violations this session: 1</div>
+  <div class="viol-actions">
+    <button class="btn-dismiss" onclick="dismissViolation()">DISMISS &amp; CONTINUE</button>
+    <button class="btn-end" onclick="endSession()">END SESSION</button>
+  </div>
+</div>
+
+<!-- Warmup progress bar -->
+<div id="warmup-bar"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   EXAM DATA
+═══════════════════════════════════════════════════ */
+const QUESTIONS = [
+  {
+    q: "Which of the following best describes a double-entry bookkeeping system?",
+    opts: ["Every transaction is recorded once", "Every transaction affects at least two accounts", "Transactions are only recorded for assets", "Income and expenses are tracked separately"],
+    correct: 1
+  },
+  {
+    q: "The Page Visibility API uses which document property to detect when a tab is hidden?",
+    opts: ["document.active", "document.hidden", "document.focus", "document.visible"],
+    correct: 1
+  },
+  {
+    q: "Which event fires when a browser window loses focus to another application?",
+    opts: ["window.onhide", "window.onblur", "window.onleave", "window.onfocusout"],
+    correct: 1
+  },
+  {
+    q: "In accounting, the basic accounting equation is expressed as:",
+    opts: ["Assets = Liabilities − Equity", "Assets = Liabilities + Owner's Equity", "Equity = Assets + Liabilities", "Liabilities = Assets × Equity"],
+    correct: 1
+  },
+  {
+    q: "Which CSS property disables text selection by the user?",
+    opts: ["pointer-events: none", "cursor: not-allowed", "user-select: none", "overflow: hidden"],
+    correct: 2
+  }
+];
+
+/* ═══════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════ */
+let sessionState  = 'idle';   // idle | warming | active | violated | terminated | complete
+let violationCount = 0;
+let logEntries    = [];
+let logIdSeed     = 0;
+let currentQ      = 0;
+let answers       = Array(QUESTIONS.length).fill(null);
+let startTime     = null;
+let clockInterval = null;
+let lastViolation = '';
+let detectorArmed = false;
+let warmupProgress = 0;
+let warmupInterval = null;
+
+/* ═══════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════ */
+function ts() {
+  return new Date().toLocaleTimeString('en-GB', { hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+
+function fmtElapsed(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  return `${String(m).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+/* ═══════════════════════════════════════════════════
+   LOGGING
+═══════════════════════════════════════════════════ */
+function addLog(msg, level = 'info') {
+  const entry = { id: ++logIdSeed, time: ts(), msg, level };
+  logEntries.push(entry);
+  if (logEntries.length > 120) logEntries.shift();
+
+  const body = document.getElementById('log-body');
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = `<span class="log-time">${entry.time}</span><span class="log-msg ${level}">${msg}</span>`;
+  body.appendChild(div);
+
+  // Scroll to bottom
+  requestAnimationFrame(() => { body.scrollTop = body.scrollHeight; });
+
+  // Update count
+  document.getElementById('log-count').textContent = logEntries.length;
+  document.getElementById('stat-events').textContent = logEntries.length;
+}
+
+/* ═══════════════════════════════════════════════════
+   CLOCK
+═══════════════════════════════════════════════════ */
+function startClock() {
+  startTime = Date.now();
+  clockInterval = setInterval(() => {
+    const now = new Date();
+    document.getElementById('hdr-clock').textContent =
+      now.toLocaleTimeString('en-GB', { hour12: false });
+
+    const elapsed = Date.now() - startTime;
+    const fmt = fmtElapsed(elapsed);
+    document.getElementById('hdr-elapsed').textContent = '+' + fmt;
+    document.getElementById('stat-elapsed').textContent = fmt;
+
+    // Check 15-min limit
+    if (elapsed >= 15 * 60 * 1000) {
+      addLog('Time limit reached — auto-submitting', 'warn');
+      submitExam();
+    }
+  }, 1000);
+}
+
+/* ═══════════════════════════════════════════════════
+   START EXAM + WARMUP
+═══════════════════════════════════════════════════ */
+function startExam() {
+  sessionState = 'warming';
+  showScreen('exam');
+  renderQuestion();
+  startClock();
+  addLog('Session initialized', 'ok');
+  addLog('Detection engine loading…', 'info');
+  addLog('Arming detectors (3s grace period)', 'warn');
+
+  // Warmup: 3-second grace period before violations can trigger
+  const WARMUP_MS = 3000;
+  const start = Date.now();
+  const bar = document.getElementById('warmup-bar');
+
+  warmupInterval = setInterval(() => {
+    const pct = Math.min(100, ((Date.now() - start) / WARMUP_MS) * 100);
+    bar.style.width = pct + '%';
+
+    if (pct >= 100) {
+      clearInterval(warmupInterval);
+      detectorArmed = true;
+      sessionState  = 'active';
+      bar.style.display = 'none';
+
+      // Update UI to armed
+      updateStatusUI();
+      addLog('All detectors ARMED — monitoring active', 'ok');
+      addLog('Page Visibility API: listening', 'ok');
+      addLog('Focus/Blur hooks: active', 'ok');
+      addLog('Anti-copy layer: engaged', 'warn');
+      addLog('Awaiting candidate actions…', 'info');
+    }
+  }, 80);
+}
+
+/* ═══════════════════════════════════════════════════
+   VIOLATION TRIGGER
+═══════════════════════════════════════════════════ */
+function triggerViolation(reason) {
+  if (!detectorArmed) return;         // grace period — ignore
+  if (sessionState === 'terminated' || sessionState === 'complete') return;
+  if (document.getElementById('violation-overlay').classList.contains('show')) {
+    // Already showing — just count it
+    violationCount++;
+    addLog(`VIOLATION: ${reason}`, 'violation');
+    updateStatusUI();
+    return;
+  }
+
+  violationCount++;
+  lastViolation = reason;
+  sessionState  = 'violated';
+
+  addLog(`VIOLATION: ${reason}`, 'violation');
+  updateStatusUI();
+
+  // Shake the app
+  const app = document.getElementById('app');
+  app.classList.add('shake');
+  setTimeout(() => app.classList.remove('shake'), 600);
+
+  // Show overlay
+  document.getElementById('viol-reason').textContent = reason;
+  document.getElementById('viol-count').textContent  =
+    `Total violations this session: ${violationCount}`;
+  document.getElementById('violation-overlay').classList.add('show');
+}
+
+function dismissViolation() {
+  document.getElementById('violation-overlay').classList.remove('show');
+  sessionState = 'active';
+  addLog('Candidate dismissed violation overlay', 'info');
+  updateStatusUI();
+}
+
+function endSession() {
+  document.getElementById('violation-overlay').classList.remove('show');
+  clearInterval(clockInterval);
+  sessionState = 'terminated';
+  addLog('Session terminated by candidate', 'violation');
+
+  document.getElementById('ts-viols').textContent   = violationCount;
+  document.getElementById('ts-elapsed').textContent = fmtElapsed(startTime ? Date.now() - startTime : 0);
+  document.getElementById('ts-events').textContent  = logEntries.length;
+  showScreen('terminated');
+}
+
+/* ═══════════════════════════════════════════════════
+   SUBMIT EXAM
+═══════════════════════════════════════════════════ */
+function submitExam() {
+  if (sessionState === 'terminated' || sessionState === 'complete') return;
+  clearInterval(clockInterval);
+  sessionState = 'complete';
+
+  // Tally score
+  let correct = 0;
+  answers.forEach((a, i) => { if (a === QUESTIONS[i].correct) correct++; });
+  const pct = Math.round((correct / QUESTIONS.length) * 100);
+  const grade = pct >= 80 ? 'Strong Pass' : pct >= 60 ? 'Pass' : pct >= 40 ? 'Marginal Fail' : 'Fail';
+
+  document.getElementById('result-score').textContent = `${correct}/${QUESTIONS.length}`;
+  document.getElementById('result-pct').textContent   = `${pct}% — ${grade}`;
+  document.getElementById('rs-viols').textContent     = violationCount;
+  document.getElementById('rs-elapsed').textContent   = fmtElapsed(startTime ? Date.now() - startTime : 0);
+  document.getElementById('rs-events').textContent    = logEntries.length;
+
+  addLog(`Assessment submitted. Score: ${correct}/${QUESTIONS.length} (${pct}%)`, 'ok');
+  showScreen('result');
+}
+
+function goLanding() {
+  clearInterval(clockInterval);
+  clearInterval(warmupInterval);
+  // Reset state
+  sessionState   = 'idle';
+  violationCount = 0;
+  logEntries     = [];
+  logIdSeed      = 0;
+  currentQ       = 0;
+  answers        = Array(QUESTIONS.length).fill(null);
+  startTime      = null;
+  detectorArmed  = false;
+  document.getElementById('log-body').innerHTML = '';
+  document.getElementById('log-count').textContent = '0';
+  document.getElementById('warmup-bar').style.display = '';
+  document.getElementById('warmup-bar').style.width = '0%';
+  showScreen('landing');
+}
+
+/* ═══════════════════════════════════════════════════
+   STATUS UI UPDATE
+═══════════════════════════════════════════════════ */
+function updateStatusUI() {
+  const chip       = document.getElementById('status-chip');
+  const sbRight    = document.getElementById('sb-right');
+  const footer     = document.getElementById('footer-status');
+  const statStatus = document.getElementById('stat-status');
+  const violsEl    = [document.getElementById('pill-viols'), document.getElementById('stat-viols')];
+
+  violsEl.forEach(el => {
+    if (!el) return;
+    el.textContent = violationCount;
+    el.className = violationCount > 0 ? 'val-bad' : 'val-ok';
+  });
+
+  if (sessionState === 'warming') {
+    chip.className = 'status-chip warming';
+    chip.textContent = '⏳ ARMING…';
+    sbRight.innerHTML = '<span class="val-warm">⏳ ARMING DETECTORS…</span>';
+    footer.style.color = 'var(--amber)';
+    footer.textContent = '⏳ WARMING UP…';
+    statStatus.textContent = 'ARMING';
+    statStatus.className = 'sv-amb';
+  } else if (sessionState === 'active') {
+    chip.className = 'status-chip secure';
+    chip.textContent = '● SECURE';
+    sbRight.innerHTML = '<span class="val-ok">✓ SESSION SECURE</span>';
+    footer.style.color = 'var(--green)';
+    footer.textContent = '🔓 MONITORING';
+    statStatus.textContent = 'ACTIVE';
+    statStatus.className = 'sv-ok';
+  } else if (sessionState === 'violated') {
+    chip.className = 'status-chip violated';
+    chip.textContent = '⚠ VIOLATED';
+    sbRight.innerHTML = '<span class="val-bad">⚠ SESSION COMPROMISED</span>';
+    footer.style.color = 'var(--red)';
+    footer.textContent = '🔒 COMPROMISED';
+    statStatus.textContent = 'VIOLATED';
+    statStatus.className = 'sv-bad';
+  }
+
+  // Detector indicators
+  document.getElementById('det-vis').className =
+    document.hidden ? 'det-firing' : 'det-armed';
+  document.getElementById('det-vis').textContent =
+    document.hidden ? '● FIRING' : '● ARMED';
+
+  document.getElementById('det-focus').className =
+    (sessionState === 'violated' && lastViolation.toLowerCase().includes('focus')) ? 'det-firing' : 'det-armed';
+}
+
+/* ═══════════════════════════════════════════════════
+   QUESTION RENDER
+═══════════════════════════════════════════════════ */
+function renderQuestion() {
+  const q = QUESTIONS[currentQ];
+
+  document.getElementById('q-label').textContent = `QUESTION ${currentQ + 1} / ${QUESTIONS.length}`;
+  document.getElementById('q-pct').textContent   = `${Math.round((currentQ / QUESTIONS.length) * 100)}% complete`;
+  document.getElementById('progress-fill').style.width = `${(currentQ / QUESTIONS.length) * 100}%`;
+  document.getElementById('q-num').textContent  = `Q${currentQ + 1}.`;
+  document.getElementById('q-text').textContent = q.q;
+
+  // Options
+  const optsEl = document.getElementById('q-opts');
+  optsEl.innerHTML = '';
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn' + (answers[currentQ] === i ? ' selected' : '');
+    btn.innerHTML = `<span class="opt-letter">${String.fromCharCode(65 + i)}</span>${opt}`;
+    btn.onclick = () => selectAnswer(i);
+    optsEl.appendChild(btn);
+  });
+
+  // Nav buttons
+  document.getElementById('btn-prev').disabled = currentQ === 0;
+
+  const nextBtn = document.getElementById('btn-next');
+  if (currentQ === QUESTIONS.length - 1) {
+    nextBtn.textContent = 'SUBMIT ✓';
+    nextBtn.onclick = submitExam;
+    nextBtn.className = 'nav-btn submit';
+  } else {
+    nextBtn.textContent = 'NEXT →';
+    nextBtn.onclick = () => navigate(1);
+    nextBtn.className = 'nav-btn';
+  }
+
+  // Dots
+  const dotsEl = document.getElementById('q-dots');
+  dotsEl.innerHTML = '';
+  QUESTIONS.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'q-dot ' + (i === currentQ ? 'current' : answers[i] !== null ? 'answered' : 'unanswered');
+    dot.textContent = i + 1;
+    dot.onclick = () => { currentQ = i; renderQuestion(); };
+    dotsEl.appendChild(dot);
+  });
+}
+
+function selectAnswer(idx) {
+  answers[currentQ] = idx;
+  addLog(`Q${currentQ + 1}: Option ${String.fromCharCode(65 + idx)} selected`, 'info');
+  renderQuestion();
+}
+
+function navigate(dir) {
+  const next = currentQ + dir;
+  if (next < 0 || next >= QUESTIONS.length) return;
+  currentQ = next;
+  renderQuestion();
+}
+
+/* ═══════════════════════════════════════════════════
+   DETECTION EVENT HANDLERS
+═══════════════════════════════════════════════════ */
+
+// Page Visibility API
+document.addEventListener('visibilitychange', () => {
+  if (!detectorArmed) return;
+  if (document.hidden) {
+    addLog('Tab hidden — visibilitychange event', 'warn');
+    document.getElementById('pill-vis').textContent = 'HIDDEN';
+    document.getElementById('pill-vis').className   = 'val-bad';
+    triggerViolation('Tab switched / window minimized');
+  } else {
+    addLog('Tab restored — visibilitychange event', 'info');
+    document.getElementById('pill-vis').textContent = 'VISIBLE';
+    document.getElementById('pill-vis').className   = 'val-ok';
+  }
+  updateStatusUI();
+});
+
+// Window blur
+window.addEventListener('blur', () => {
+  if (!detectorArmed) return;
+  addLog('Window lost focus — blur event', 'warn');
+  document.getElementById('pill-focus').textContent = 'BLURRED';
+  document.getElementById('pill-focus').className   = 'val-bad';
+  triggerViolation('Window lost focus (app switch / overlay detected)');
+  updateStatusUI();
+});
+
+// Window focus
+window.addEventListener('focus', () => {
+  addLog('Window regained focus — focus event', 'info');
+  document.getElementById('pill-focus').textContent = 'FOCUSED';
+  document.getElementById('pill-focus').className   = 'val-ok';
+
+  // Auto-heal status if it was a focus violation and now we're back
+  if (sessionState === 'violated') {
+    // Don't auto-heal — let candidate dismiss
+  }
+  updateStatusUI();
+});
+
+// Right-click
+document.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  if (!detectorArmed) return;
+  addLog('Right-click attempt blocked', 'warn');
+  triggerViolation('Right-click / context menu attempt');
+});
+
+// Keyboard
+document.addEventListener('keydown', (e) => {
+  const ctrl = e.ctrlKey || e.metaKey;
+
+  if (ctrl && e.key === 'p') {
+    e.preventDefault();
+    if (!detectorArmed) return;
+    addLog('Print attempt (Ctrl+P) intercepted', 'warn');
+    triggerViolation('Print attempt detected (Ctrl+P)');
+  }
+  if (ctrl && e.key === 'c') {
+    if (!detectorArmed) return;
+    addLog('Copy attempt (Ctrl+C) intercepted', 'warn');
+  }
+  if (ctrl && e.key === 'a') {
+    e.preventDefault();
+    if (!detectorArmed) return;
+    addLog('Select-all (Ctrl+A) blocked', 'warn');
+  }
+  if (e.key === 'F12') {
+    e.preventDefault();
+    if (!detectorArmed) return;
+    addLog('DevTools key (F12) blocked', 'warn');
+    triggerViolation('Developer tools access attempt (F12)');
+  }
+  if (ctrl && e.shiftKey && (e.key === 'I' || e.key === 'i')) {
+    e.preventDefault();
+    if (!detectorArmed) return;
+    addLog('DevTools shortcut (Ctrl+Shift+I) blocked', 'warn');
+    triggerViolation('Developer tools access attempt');
+  }
+  if (ctrl && (e.key === 'u' || e.key === 'U')) {
+    e.preventDefault();
+    if (!detectorArmed) return;
+    addLog('View source (Ctrl+U) blocked', 'warn');
+  }
+  if (ctrl && (e.key === 's' || e.key === 'S')) {
+    e.preventDefault();
+    if (!detectorArmed) return;
+    addLog('Save page (Ctrl+S) blocked', 'warn');
+  }
+});
+
+// Before print
+window.addEventListener('beforeprint', () => {
+  if (!detectorArmed) return;
+  addLog('beforeprint event fired', 'warn');
+  triggerViolation('Print dialog triggered');
+});
+
+// Disable drag
+document.addEventListener('dragstart', (e) => e.preventDefault());
+
+// Disable select via mouse
+document.addEventListener('selectstart', (e) => {
+  // Allow in input/textarea
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  e.preventDefault();
+});
+
+/* Initial render */
+updateStatusUI();
+</script>
+</body>
+</html>
